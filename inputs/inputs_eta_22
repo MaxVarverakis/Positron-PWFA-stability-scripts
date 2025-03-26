@@ -1,0 +1,129 @@
+##### Run time: 45 min #####
+
+fields.insitu_period = 1
+beams.insitu_period = 1
+plasmas.insitu_period = 1
+
+hipace.file_prefix         =   /data/data4/mvarvera/hdf5/front_eta22
+beams.insitu_file_prefix   = /data/data4/mvarvera/insitu/front_eta22
+plasmas.insitu_file_prefix = /data/data4/mvarvera/insitu/front_eta22
+fields.insitu_file_prefix  = /data/data4/mvarvera/insitu/front_eta22
+
+my_constants.ref_ratio = 32
+
+# box size on level 0 / nx level 0 * nx level 1 / refinement ratio / 2 because patch size +-
+my_constants.patch_size = 511 / 2047 / 2 # = 32 / 2047 * 511 / ref_ratio / 2
+
+my_constants.r = patch_size * 3
+my_constants.n0 = 1.
+my_constants.columnR = 2.5
+my_constants.drive_u = 10000 # 5.11 GeV/c
+
+hipace.background_density_SI = 5e22 # 1e23 for He, 5e22 for H
+
+amr.n_cell = 2047 2047 2048
+
+comms_buffer.on_gpu = 1 # utilize GPU-aware MPI
+
+hipace.normalized_units = 1
+hipace.verbose = 1
+hipace.salame_n_iter = 5
+
+diagnostic.diag_type = xz
+diagnostic.field_data = Bx By Bz ExmBy EypBx Ez jx jx_beam jy jy_beam jz_beam rho
+diagnostic.beam_output_period = 1 # 200 
+amr.max_level = 1
+
+amrex.the_arena_is_managed = 1
+
+max_step = 0
+diagnostic.output_period = 1 # 10
+hipace.deposit_rho = 1
+hipace.deposit_rho_individual = 1
+hipace.depos_order_xy = 2
+
+geometry.coord_sys   = 0                  # 0: Cartesian
+boundary.particle = Periodic              # periodic boundary condition for particles
+boundary.field = Periodic                 # periodic domain boundaries
+geometry.prob_lo     = -16.   -16.   -24  # physical domain
+geometry.prob_hi     =  16.    16.    6
+
+mr_lev1.n_cell = 511 511
+mr_lev1.patch_lo = -patch_size -patch_size -24
+mr_lev1.patch_hi =  patch_size patch_size 6
+
+beams.names = drive witness recovery
+
+my_constants.drive_std = 0.12
+
+drive.profile = gaussian
+drive.injection_type = fixed_weight
+drive.do_symmetrize = 1
+drive.num_particles = 1.5e8
+drive.density = 150
+drive.u_mean = 0. 0. drive_u
+drive.u_std =  "drive_std*sqrt(drive_u/2.)" "drive_std*sqrt(drive_u/2.)"  0.
+drive.position_std = drive_std drive_std 1.41
+drive.position_mean = 0. 0. 0.
+
+my_constants.z_min = -9.25 - 0.75
+my_constants.z_max = -8.   - 0.75
+
+recovery.injection_type = fixed_weight
+recovery.profile = can
+recovery.do_symmetrize = 1
+recovery.num_particles = 1.5e8
+recovery.density =  5
+recovery.u_mean = 0. 0. drive_u # ~ 5.11 GeV/c
+recovery.u_std = "0.03*sqrt(drive_u/2.)" "0.03*sqrt(drive_u/2.)" 0.
+recovery.position_mean = 0. 0. -8.9
+recovery.position_std = 0.03 0.03 0.25 # rms beam size
+recovery.zmin = z_min
+recovery.zmax = z_max
+recovery.do_salame = 1
+
+witness.injection_type = fixed_weight
+witness.profile = gaussian
+witness.num_particles = 2e8
+witness.element = positron
+witness.density = 225
+witness.u_mean = 0. 0. drive_u # ~ 5.11 GeV/c
+witness.u_std =  "0.03*sqrt(drive_u/2.)" "0.03*sqrt(drive_u/2.)" 0
+witness.position_mean = 0.0 0.0 -12.65
+witness.position_std = .03 .03 0.33
+witness.do_symmetrize = 1
+witness.n_subcycles = 10
+witness.zmax = -11.8
+witness.zmin = -13.15
+
+plasmas.names = electrons ions
+plasmas.neutralize_background = 0
+plasmas.reorder_period = 4 # for GPU's only!
+
+electrons.element = electron
+# 5th-order easing function for plasma column transverse density profile
+electrons.density(x,y,z) = "
+r = sqrt(x^2 + y^2);
+min(1,n0 * (1.5-(r/columnR)^5))"
+electrons.radius = columnR
+electrons.ppc = 8 8
+electrons.fine_ppc = 64 64
+electrons.fine_transition_cells = 4
+electrons.fine_patch(x,y) =  "sqrt(x^2+y^2) < r"
+electrons.do_symmetrize = 1
+electrons.temperature_in_ev = 50
+
+ions.element = H
+ions.ppc = 2 2
+ions.density(x,y,z) = "
+r = sqrt(x^2 + y^2);
+min(1,n0 * (1.5-(r/columnR)^5))"
+ions.radius = columnR
+ions.ionization_product = electrons
+ions.initial_ion_level = 1
+ions.fine_ppc = 64 64
+ions.fine_transition_cells = 2
+ions.fine_patch(x,y) = "sqrt(x^2+y^2) < r"
+ions.do_symmetrize = 1
+ions.temperature_in_ev = 0
+

@@ -1,0 +1,108 @@
+##### Run time: 2 hr/initial step   #####
+##### Total time (800) steps: X hrs #####
+
+fields.insitu_period = 1
+beams.insitu_period = 1
+plasmas.insitu_period = 1
+
+hipace.file_prefix         =   /scratch/project_465001379/varverak/hdf5/front_eta16_propagated_recovery_offset_1.0_sigma_800_steps
+beams.insitu_file_prefix   = /scratch/project_465001379/varverak/insitu/front_eta16_propagated_recovery_offset_1.0_sigma_800_steps
+plasmas.insitu_file_prefix = /scratch/project_465001379/varverak/insitu/front_eta16_propagated_recovery_offset_1.0_sigma_800_steps
+fields.insitu_file_prefix  = /scratch/project_465001379/varverak/insitu/front_eta16_propagated_recovery_offset_1.0_sigma_800_steps
+
+my_constants.ref_ratio = 32
+
+# box size on level 0 / nx level 0 * nx level 1 / refinement ratio / 2 because patch size +-
+my_constants.patch_size = 511 / 2047 / 2 # = 32 / 2047 * 511 / ref_ratio / 2
+
+my_constants.r = patch_size * 3
+my_constants.n0 = 1.
+my_constants.columnR = 2.5
+my_constants.drive_u = 10000 # 5.11 GeV/c
+
+hipace.background_density_SI = 5e22 # 1e23 for He, 5e22 for H
+
+amr.n_cell = 2047 2047 2048
+
+comms_buffer.on_gpu = 1 # utilize GPU-aware MPI
+
+hipace.normalized_units = 1
+hipace.verbose = 1
+hipace.salame_n_iter = 5
+
+diagnostic.diag_type = xz
+diagnostic.field_data = Bx By Bz ExmBy EypBx Ez jx jx_beam jy jy_beam jz_beam rho
+amr.max_level = 1
+
+amrex.the_arena_is_managed = 1
+
+max_step = 799
+hipace.dt = adaptive # 5.
+hipace.nt_per_betatron = 150 # 25
+
+diagnostic.output_period = 10
+diagnostic.beam_output_period = 10
+
+hipace.deposit_rho = 1
+hipace.deposit_rho_individual = 1
+hipace.depos_order_xy = 2
+
+geometry.coord_sys   = 0                  # 0: Cartesian
+boundary.particle = Periodic              # periodic boundary condition for particles
+boundary.field = Periodic                 # periodic domain boundaries
+geometry.prob_lo     = -16.   -16.   -24  # physical domain
+geometry.prob_hi     =  16.    16.    6
+
+mr_lev1.n_cell = 511 511
+mr_lev1.patch_lo = -patch_size -patch_size -24
+mr_lev1.patch_hi =  patch_size patch_size 6
+
+beams.names = drive witness recovery
+
+drive.injection_type = from_file
+drive.input_file = /scratch/project_465001379/varverak/hdf5/front_eta16_offset_recovery_1.0_sigma/openpmd_%T.h5
+drive.openPMD_species_name = drive
+drive.iteration = 0
+
+recovery.injection_type = from_file
+recovery.input_file = /scratch/project_465001379/varverak/hdf5/front_eta16_offset_recovery_1.0_sigma/openpmd_%T.h5
+recovery.openPMD_species_name = recovery
+recovery.iteration = 0
+
+witness.injection_type = from_file
+witness.element = positron
+witness.input_file = /scratch/project_465001379/varverak/hdf5/front_eta16_offset_recovery_1.0_sigma/openpmd_%T.h5
+witness.openPMD_species_name = witness
+witness.iteration = 0
+
+plasmas.names = electrons ions
+plasmas.neutralize_background = 0
+plasmas.reorder_period = 4 # for GPU's only!
+
+electrons.element = electron
+# 5th-order easing function for plasma column transverse density profile
+electrons.density(x,y,z) = "
+r = sqrt(x^2 + y^2);
+min(1,n0 * (1.5-(r/columnR)^5))"
+electrons.radius = columnR
+electrons.ppc = 8 8
+electrons.fine_ppc = 64 64
+electrons.fine_transition_cells = 4
+electrons.fine_patch(x,y) =  "sqrt(x^2+y^2) < r"
+electrons.do_symmetrize = 1
+electrons.temperature_in_ev = 50
+
+ions.element = H
+ions.ppc = 2 2
+ions.density(x,y,z) = "
+r = sqrt(x^2 + y^2);
+min(1,n0 * (1.5-(r/columnR)^5))"
+ions.radius = columnR
+ions.ionization_product = electrons
+ions.initial_ion_level = 1
+ions.fine_ppc = 64 64
+ions.fine_transition_cells = 2
+ions.fine_patch(x,y) = "sqrt(x^2+y^2) < r"
+ions.do_symmetrize = 1
+ions.temperature_in_ev = 0
+
